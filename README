@@ -1,0 +1,57 @@
+Automatically generate a google pinyin extension from a definition file
+
+Use FSMGenerator.exe to generate FSM table, then edit skeleton.lua, put
+FSM table in correct place.
+
+FSMGenerator.exe usage:
+    FSMGenerator.exe [input definition file] [output FSM table file]
+
+About definition file format:
+        [keyboard input sequence]:[output characters]
+    one define per line. Input can be everything except ':', '.' or '\r'
+'\n' (colon, dot or end of line). '.' (dot) in input sequence means jump
+to this state after reduce output. if no '.' (dot) exist, jump to initial
+state
+
+eg.1 definition:
+        aaa:x
+        bbb:y
+    input -> output
+      aaa -> x
+      bbb -> y
+   aaaaaa -> xx
+   aaabbb -> xy
+ aaaaaaaa -> xxx
+
+
+eg.2 definition:
+        aa.a:x
+    input -> output
+      aaa -> x
+     aaaa -> xx  (after reduce first 'x', jump to 'aa' state, so
+                  only single extra 'a' for an extra 'x')
+   aaaaaa -> xxxx (jump to 'aa' state again and again)
+
+eg.3 definition:
+        aa.a:x
+        aab:y
+    input -> output
+     aaaa -> xx
+      aab -> y
+     aaab -> xy (after reduce first 'x', jump to 'aa' state, as
+                 aa.a/aab share the same 'aa' state, only
+                 single extra 'b' for an extra 'y')
+    aaabb -> xy#error (after reduce 'y', jump to initial state
+                       but can not input 'b' at initial state.)
+
+eg.4 definition:
+        aa.a:x
+        aab:y
+        b:z
+    input -> output
+     aaaa -> xx
+      aab -> y
+     aaab -> xy
+    aaabb -> xyz
+
+

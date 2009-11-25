@@ -1,0 +1,281 @@
+#	jay skeleton
+#
+#	character in column 1 determines outcome...
+#		# is a comment
+#		. is copied
+#		t is copied as //t if -t is set
+#	other lines are interpreted to call jay procedures
+#
+.// created by jay 0.7 (c) 1998 Axel.Schreiner@informatik.uni-osnabrueck.de
+.
+.using System;
+.using System.Linq;
+ prolog		## %{ ... %} prior to the first %%
+.{
+.  class yy
+.  {
+.    class Stack<T> : System.Collections.Generic.Stack<T>
+.    {
+.      public T this[int index]
+.      {
+.        get { return this.ElementAt(index); }
+.      }
+.    }
+.
+.    Stack<int> yyStates;
+.    Stack<Object> yyVals;
+.    int yyErrorFlag;
+.
+.    public void yyInit()
+.    {
+.      yyStates = new Stack<int>();
+.      yyVals = new Stack<Object>();
+.      yyStates.Push(0);
+.      yyVals.Push(null);
+t      if (debug != null) debug.push(0, null);
+.    }
+.
+.    public bool yyFeed(int yyToken, Object yyObj, Object yyUser)
+.    {
+.    yyRestart:
+.      int yyState = yyStates.Peek();
+.      object yyVal = yyVals.Peek();
+.
+.      int yyN;
+.      if ((yyN = yyDefRed[yyState]) == 0)
+.      { // else [default] reduce (yyN)
+t        if (debug != null)
+t          debug.lex(yyState, yyToken, yyname(yyToken), yyObj);
+.        if ((yyN = yySindex[yyState]) != 0 && ((yyN += yyToken) >= 0) &&
+.          (yyN < yyTable.Length) && (yyCheck[yyN] == yyToken))
+.        {
+t          if (debug != null)
+t            debug.shift(yyState, yyTable[yyN], yyErrorFlag - 1);
+.          if (yyErrorFlag > 0) --yyErrorFlag;
+.          yyStates.Push(yyTable[yyN]); // shift to yyN
+.          yyVals.Push(yyObj);
+.          return false;
+.        }
+.        else if ((yyN = yyRindex[yyState]) != 0 && (yyN += yyToken) >= 0 &&
+.              yyN < yyTable.Length && yyCheck[yyN] == yyToken)
+.        {
+.          yyN = yyTable[yyN]; // reduce (yyN)
+.        }
+.        else
+.        {
+.          switch (yyErrorFlag) // error
+.          {
+.            case 0:
+t              if (debug != null) debug.error("syntax error");
+.              goto case 1;
+.            case 1:
+.            case 2:
+.              yyErrorFlag = 3;
+.              do
+.              {
+.                if ((yyN = yySindex[yyStates.Peek()]) != 0
+.                  && (yyN += Token.yyErrorCode) >= 0 && yyN < yyTable.Length
+.                  && yyCheck[yyN] == Token.yyErrorCode)
+.                {
+t                  if (debug != null)
+t                    debug.shift(yyStates.Peek(), yyTable[yyN], 3);
+.                  yyStates.Push(yyTable[yyN]);
+.                  yyVals.Push(null); // TODO : what to push ?
+.                  return false;
+.                }
+t                if (debug != null) debug.pop(yyStates.Peek());
+.                yyStates.Pop();
+.                yyVals.Pop();
+.              } while (yyStates.Count > 0);
+t              if (debug != null) debug.reject();
+.              throw new yyParser.yyException("irrecoverable syntax error");
+.
+.            case 3:
+.              if (yyToken == 0)
+.              {
+t                if (debug != null) debug.reject();
+.                throw new yyParser.yyException("irrecoverable syntax error at end-of-file");
+.              }
+t              if (debug != null)
+t                debug.discard(yyState, yyToken, yyname(yyToken), yyObj);
+.              yyToken = -1;
+.              yyObj = null;
+.              return false; // leave stack alone
+.          }
+.        }
+.      }
+.
+.      // reduce yyN
+.      int yyV = yyStates.Count + 1 - yyLen[yyN];
+t      if (debug != null)
+t        debug.reduce(yyState, yyStates[yyV - 1], yyN, YYRules.getRule(yyN), yyLen[yyN]);
+.      yyVal = yyV >= yyStates.Count ? null : yyVals[yyV];
+.      switch (yyN)
+.      {
+.        default:
+.          break;
+.      }
+.      for (int i = yyLen[yyN]; i > 0; i--)
+.      {
+.        yyStates.Pop();
+.        yyVals.Pop();
+.      }
+.      yyState = yyStates.Peek();
+.      int yyM = yyLhs[yyN];
+.      if (yyState == 0 && yyM == 0)
+.      {
+t        if (debug != null) debug.shift(0, yyFinal);
+.        yyState = yyFinal;
+.        if (yyToken < 0)
+.        {
+.          throw new Exception("Not Possible");
+.        }
+.        else if (yyToken == 0)
+.        {
+t          if (debug != null) debug.accept(yyVal);
+.          return true;
+.        }
+.      }
+.      else if (((yyN = yyGindex[yyM]) != 0) && ((yyN += yyState) >= 0) &&
+.           (yyN < yyTable.Length) && (yyCheck[yyN] == yyState))
+.        yyState = yyTable[yyN];
+.      else
+.        yyState = yyDgoto[yyM];
+t      if (debug != null) debug.shift(yyStates.Peek(), yyState);
+.      yyStates.Push(yyState);
+.      yyVals.Push(yyVal);
+.      goto yyRestart;
+.    }
+.
+t    /** debugging support, requires the package jay.yydebug.
+t      Set to null to suppress debugging messages.
+t     */
+t    internal yydebug.yyDebug debug;
+t
+ debug			## tables for debugging support
+.
+t    /** index-checked interface to yyNames[].
+t      @param token single character or %token value.
+t      @return token name or [illegal] or [unknown].
+t     */
+t    public static string yyname(int token)
+t    {
+t      if ((token < 0) || (token > yyNames.Length)) return "[illegal]";
+t      string name;
+t      if ((name = yyNames[token]) != null) return name;
+t      return "[unknown]";
+t    }
+t
+ tables			## tables for rules, default reduction, and action calls
+.  }
+.
+ epilog			## text following second %%
+t  namespace yydebug
+t  {
+t    using System;
+t    internal interface yyDebug
+t    {
+t      void push(int state, Object value);
+t      void lex(int state, int token, string name, Object value);
+t      void shift(int from, int to, int errorFlag);
+t      void pop(int state);
+t      void discard(int state, int token, string name, Object value);
+t      void reduce(int from, int to, int rule, string text, int len);
+t      void shift(int from, int to);
+t      void accept(Object value);
+t      void error(string message);
+t      void reject();
+t    }
+t
+t    class yyDebugSimple : yyDebug
+t    {
+t      void println(string s)
+t      {
+t        Console.Error.WriteLine(s);
+t      }
+t
+t      public void push(int state, Object value)
+t      {
+t        println("push\tstate " + state + "\tvalue " + value);
+t      }
+t
+t      public void lex(int state, int token, string name, Object value)
+t      {
+t        println("lex\tstate " + state + "\treading " + name + "\tvalue " + value);
+t      }
+t
+t      public void shift(int from, int to, int errorFlag)
+t      {
+t        switch (errorFlag)
+t        {
+t          default: // normally
+t            println("shift\tfrom state " + from + " to " + to);
+t            break;
+t          case 0:
+t          case 1:
+t          case 2: // in error recovery
+t            println("shift\tfrom state " + from + " to " + to
+t                + "\t" + errorFlag + " left to recover");
+t            break;
+t          case 3: // normally
+t            println("shift\tfrom state " + from + " to " + to + "\ton error");
+t            break;
+t        }
+t      }
+t
+t      public void pop(int state)
+t      {
+t        println("pop\tstate " + state + "\ton error");
+t      }
+t
+t      public void discard(int state, int token, string name, Object value)
+t      {
+t        println("discard\tstate " + state + "\ttoken " + name + "\tvalue " + value);
+t      }
+t
+t      public void reduce(int from, int to, int rule, string text, int len)
+t      {
+t        println("reduce\tstate " + from + "\tuncover " + to
+t            + "\trule (" + rule + ") " + text);
+t      }
+t
+t      public void shift(int from, int to)
+t      {
+t        println("goto\tfrom state " + from + " to " + to);
+t      }
+t
+t      public void accept(Object value)
+t      {
+t        println("accept\tvalue " + value);
+t      }
+t
+t      public void error(string message)
+t      {
+t        println("error\t" + message);
+t      }
+t
+t      public void reject()
+t      {
+t        println("reject");
+t      }
+t
+t    }
+t  }
+.  // %token constants
+.  class Token
+.  {
+ tokens public const int
+.  }
+.  namespace yyParser
+.  {
+.    /** thrown for irrecoverable syntax errors and stack overflow.
+.     */
+.    internal class yyException : System.Exception
+.    {
+.      public yyException(string message)
+.        : base(message)
+.      {
+.      }
+.    }
+.  }
+.} // close outermost namespace, that MUST HAVE BEEN opened in the prolog

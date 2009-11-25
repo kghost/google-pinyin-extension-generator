@@ -1,0 +1,6 @@
+Debug/
+Release/
+FiniteStateMachine/yy.cs
+*.ncb
+*.suo
+*.user
